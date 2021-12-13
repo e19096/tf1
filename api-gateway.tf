@@ -36,16 +36,30 @@ resource "aws_apigatewayv2_integration" "trucks" {
   integration_method = "POST"
 }
 
-resource "aws_apigatewayv2_route" "trucks" {
-  api_id = aws_apigatewayv2_api.lambda.id
-
+resource "aws_apigatewayv2_route" "get_trucks" {
+  api_id    = aws_apigatewayv2_api.lambda.id
   route_key = "GET /trucks"
   target    = "integrations/${aws_apigatewayv2_integration.trucks.id}"
 }
 
-resource "aws_cloudwatch_log_group" "api_gw" {
-  name = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}"
+resource "aws_apigatewayv2_route" "get_reservations" {
+  api_id    = aws_apigatewayv2_api.lambda.id
+  route_key = "GET /reservations"
+  target    = "integrations/${aws_apigatewayv2_integration.trucks.id}"
+  # authorization_type = "JWT"
+  # authorizer_id      = aws_apigatewayv2_authorizer.auth.id
+}
 
+resource "aws_apigatewayv2_route" "post_reservations" {
+  api_id    = aws_apigatewayv2_api.lambda.id
+  route_key = "POST /reservations"
+  target    = "integrations/${aws_apigatewayv2_integration.trucks.id}"
+  # authorization_type = "JWT"
+  # authorizer_id      = aws_apigatewayv2_authorizer.auth.id
+}
+
+resource "aws_cloudwatch_log_group" "api_gw" {
+  name              = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}"
   retention_in_days = 30
 }
 
@@ -54,6 +68,17 @@ resource "aws_lambda_permission" "api_gw" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.trucks.function_name
   principal     = "apigateway.amazonaws.com"
-
-  source_arn = "${aws_apigatewayv2_api.lambda.execution_arn}/*/*"
+  source_arn    = "${aws_apigatewayv2_api.lambda.execution_arn}/*/*"
 }
+
+# resource "aws_apigatewayv2_authorizer" "auth" {
+#   api_id           = aws_apigatewayv2_api.lambda.id
+#   authorizer_type  = "JWT"
+#   identity_sources = ["$request.header.Authorization"]
+#   name             = "cognito-authorizer"
+#
+#   jwt_configuration {
+#     audience = [aws_cognito_user_pool_client.client.id]
+#     issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
+#   }
+# }

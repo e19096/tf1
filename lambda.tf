@@ -5,28 +5,25 @@ data "archive_file" "lambda_trucks" {
   output_path = "${path.module}/lambda.zip"
 }
 
-# resource "aws_s3_bucket_object" "lambda_trucks" {
-#   bucket = aws_s3_bucket.lambda_bucket.id
-#
-#   key    = "lambda.zip"
-#   source = data.archive_file.lambda_trucks.output_path
-#
-#   etag = filemd5(data.archive_file.lambda_trucks.output_path)
-# }
-
 resource "aws_lambda_function" "trucks" {
-  function_name = "trucks"
-  filename      = "${path.module}/lambda.zip"
-
-  # s3_bucket = aws_s3_bucket.lambda_bucket.id
-  # s3_key    = aws_s3_bucket_object.lambda_trucks.key
-
-  runtime = "python3.9"
-  handler = "trucks.handler"
-
+  function_name    = "trucks"
+  filename         = "${path.module}/lambda.zip"
+  runtime          = "python3.6"
+  handler          = "trucks.handler"
   source_code_hash = data.archive_file.lambda_trucks.output_base64sha256
-
-  role = aws_iam_role.lambda_exec.arn
+  role             = aws_iam_role.lambda_exec.arn
+  layers = [
+    "arn:aws:lambda:us-east-2:898466741470:layer:psycopg2-py36:1",
+  ]
+  environment {
+    variables = {
+      DB_HOST     = aws_db_instance.z3l.address,
+      DB_NAME     = aws_db_instance.z3l.name,
+      DB_PORT     = aws_db_instance.z3l.port,
+      DB_USER     = aws_db_instance.z3l.username,
+      DB_PASSWORD = var.db_password,
+    }
+  }
 }
 
 resource "aws_cloudwatch_log_group" "trucks" {

@@ -59,12 +59,13 @@ resource "aws_db_instance" "z3l" {
   instance_class         = "db.t3.micro"
   allocated_storage      = 5
   engine                 = "postgres"
-  engine_version         = "13.1"
+  engine_version         = "13.3"
   username               = "z3l"
   password               = var.db_password
   db_subnet_group_name   = aws_db_subnet_group.z3l.name
   vpc_security_group_ids = [aws_security_group.rds.id]
   parameter_group_name   = aws_db_parameter_group.z3l.name
-  publicly_accessible    = true # TODO remove
+  publicly_accessible    = true # TODO remove or set to false
   skip_final_snapshot    = true
+  name                   = "core"
 }
