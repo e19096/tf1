@@ -10,64 +10,72 @@ def create_conn():
                                 host=os.environ.get("DB_HOST"),
                                 port=os.environ.get("DB_PORT"),
                                 password=os.environ.get("DB_PASSWORD"))
-        # conn = psycopg2.connect(dbname='constituents_development',
-        #                         user='postgres',
-        #                         host="localhost",
-        #                         port=5432,
-        #                         password='postgres')
     except:
         print("Cannot connect.")
     return conn
 
-def fetch(conn, query, vars):
+# TODO format data better for fe
+def fetch(conn, query, vars, error_msg):
     result = []
     print("Now executing: {}".format(query))
     cursor = conn.cursor()
-    cursor.execute(query, vars)
+    try:
+        cursor.execute(query, vars)
+        raw = cursor.fetchall()
+        for line in raw:
+            result.append(line)
+        return result
+    except Exception as e:
+        print('fetch error')
+        print(e)
+        raise Exception(error_msg)
 
-    raw = cursor.fetchall()
-    for line in raw:
-        result.append(line)
-
-    return result
-
-def write(conn, query, vars, error_msg):
+def write(conn, query, vars, success_msg, error_msg):
     print("Now executing: {}".format(query))
     cursor = conn.cursor()
     try:
         # TODO row-level locks
         cursor.execute(query, vars)
         conn.commit()
-    except Exception as e:
+        return success_msg
+    except Exception as e: # TODO exclusion exception?
         print('write error')
         print(e)
         conn.rollback()
-        return error_msg
+        raise Exception(error_msg)
 
-# TODO handle error case
 def handler(event, context):
     print(event)
     print(context)
 
     conn = create_conn()
 
-    resource = event.get("resource")
-    if resource == "/trucks":
-        data = handle_trucks(event, conn)
-    elif resource == "/reservations":
-        data = handle_reservations(event, conn)
-    # else error TODO
+    try:
+        resource = event.get("resource")
+        if resource == "/trucks":
+            data = handle_trucks(event, conn)
+        elif resource == "/reservations":
+            data = handle_reservations(event, conn)
+        else:
+            print(f"ERROR: unimplemented route: {resource}")
 
-    conn.close()
+        conn.close()
 
-    return {"statusCode": 200,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"data": data}, default=str)}
+        return {"statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"data": data}, default=str)}
+    except Exception as e: # TODO exception classes
+        print('handler error')
+        print(e)
+        return {"statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": str(e)}, default=str)}
+
 
 def handle_trucks(event, conn):
     params = event.get("queryStringParameters")
-    if params is None: # TODO what if empty or missing or bad params
-        return {"error": "Bad request"} # TODO use exception for bad req 400
+    if params is None or not all(key in params for key in ["start_dt", "end_dt"]):
+        raise Exception("Missing query parameters"):
 
     return get_available_trucks(conn=conn,
                                 start_dt=params.get("start_dt"),
@@ -76,19 +84,24 @@ def handle_trucks(event, conn):
 def handle_reservations(event, conn):
     httpMethod = event.get("httpMethod")
     params = event.get("queryStringParameters")
-    if params is None: # TODO what if empty or missing or bad params
-        return {"error": "Bad request"} # TODO use exception; return 400
+    if params is None:
+        raise Exception("Missing query parameters")
 
     if httpMethod == "GET":
+        if not all(key in params for key in ["user_id"]):
+            raise Exception("Missing query parameters")
+
         return get_user_reservations(conn=conn,
                                      user_id=params.get("user_id"))
     elif httpMethod == "POST":
+        if not all(key in params for key in ["user_id", "truck_id", "start_dt", "end_dt"]):
+            raise Exception("Missing query parameters")
+
         return create_reservation(conn=conn,
                                   user_id=params.get("user_id"),
                                   truck_id=params.get("truck_id"),
                                   start_dt=params.get("start_dt"),
                                   end_dt=params.get("end_dt"))
-        pass
 
 # TODO upsert with additional identifier.. move_id?
 # TODO let client pass truck name instead of truck id
@@ -97,17 +110,19 @@ def handle_reservations(event, conn):
 # TODO verify logged in user is requesting own or is admin user
 def create_reservation(conn, user_id, truck_id, start_dt, end_dt):
     query = """
-    insert into reservations (user_id, truck_id, start_dt_utc, end_dt_utc)
+    insert into reservations (user_id, truck_id, start_dt, end_dt)
     values (%s, %s, %s, %s)
     """
+    success_msg = "success! your truck has been reserved."
     error_msg = "truck unavailable! please select a different truck or daterange and try again"
-    return write(conn, query, (int(user_id), int(truck_id), start_dt, end_dt), error_msg)
+    return write(conn,
+                 query,
+                 (int(user_id), int(truck_id), start_dt, end_dt),
+                 success_msg,
+                 error_msg)
 
-# TODO timezones! require utc params?
 # TODO add 15? min buffer between reservations
-# TODO look up overlapping by truck name instead
-
-# TODO validate params
+# TODO look up overlapping by truck name
 def get_available_trucks(conn, start_dt, end_dt):
     query = """
     with overlapping_reservations as (
@@ -116,27 +131,31 @@ def get_available_trucks(conn, start_dt, end_dt):
       from trucks
       join reservations
         on trucks.id = reservations.truck_id
-       and tsrange(%s, %s) && tsrange(reservations.start_dt_utc, reservations.end_dt_utc)
+       and tstzrange(%s, %s, '[]') && tstzrange(reservations.start_dt, reservations.end_dt, '[]')
     )
-    select * from trucks
+    select trucks.id, trucks.name from trucks
     left join overlapping_reservations
            on trucks.id = overlapping_reservations.truck_id
     where overlapping_reservations.reservation_id is null
-    """
-    return fetch(conn, query, (start_dt, end_dt))
+      and %s > now()
+    """ # TODO check start > now in python
+    return fetch(conn, query, (start_dt, end_dt, start_dt), "error fetching trucks, please check your dates and try again")
 
 # TODO option/param to fetch past reservations
-
 # TODO verify logged in user is requesting own or is admin user
 def get_user_reservations(conn, user_id):
     query = """
-    select * from reservation
-    where end_dt_utc > (now() at time zone 'utc')
+    select reservations.start_dt
+         , reservations.end_dt
+         , trucks.name
+         , trucks.id
+    from reservations, trucks
+    where reservations.truck_id = trucks.id
+      and end_dt > now()
       and user_id = %s
-    order by start_dt_utc asc
-    limit 100",
+    order by start_dt asc
+    limit 100
     """
-    return fetch(conn, query, (int(user_id),))
+    return fetch(conn, query, (int(user_id),), "error fetching your reservations")
 
-# TODO signup/login
 # TODO factor fns out into other files eg trucks, reservations
