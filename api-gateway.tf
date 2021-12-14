@@ -1,6 +1,9 @@
 resource "aws_apigatewayv2_api" "lambda" {
   name          = "serverless_lambda_gw"
   protocol_type = "HTTP"
+  cors_configuration {
+    allow_origins = ["*"]
+  }
 }
 
 resource "aws_apigatewayv2_stage" "lambda" {
