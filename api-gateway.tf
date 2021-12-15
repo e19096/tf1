@@ -3,7 +3,7 @@ resource "aws_apigatewayv2_api" "lambda" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins     = ["http://localhost:3000"]
+    allow_origins     = ["http://localhost:3000", "https://e19096.github.io"]
     allow_credentials = "true"
     allow_headers     = ["Content-Type", "Authorization"]
     allow_methods     = ["GET", "OPTIONS", "POST"]
