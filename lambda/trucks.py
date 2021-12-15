@@ -75,39 +75,37 @@ def handler(event, context):
 def handle_trucks(event, conn):
     params = event.get("queryStringParameters")
     if params is None or not all(key in params for key in ["start_dt", "end_dt"]):
-        raise Exception("Missing query parameters"):
+        raise Exception("Missing query parameters")
 
     return get_available_trucks(conn=conn,
                                 start_dt=params.get("start_dt"),
                                 end_dt=params.get("end_dt"))
 
 def handle_reservations(event, conn):
+    try:
+        user_id = event["requestContext"]["authorizer"]["claims"]["sub"]
+    except KeyError as e:
+        print(e)
+        raise Exception("authorization error")
+
     httpMethod = event.get("httpMethod")
-    params = event.get("queryStringParameters")
-    if params is None:
-        raise Exception("Missing query parameters")
-
     if httpMethod == "GET":
-        if not all(key in params for key in ["user_id"]):
-            raise Exception("Missing query parameters")
-
         return get_user_reservations(conn=conn,
-                                     user_id=params.get("user_id"))
+                                     user_id=user_id)
     elif httpMethod == "POST":
-        if not all(key in params for key in ["user_id", "truck_id", "start_dt", "end_dt"]):
+        params = event.get("queryStringParameters")
+        if params is None or not all(key in params for key in ["truck_id", "start_dt", "end_dt"]):
             raise Exception("Missing query parameters")
 
         return create_reservation(conn=conn,
-                                  user_id=params.get("user_id"),
+                                  user_id=user_id,
                                   truck_id=params.get("truck_id"),
                                   start_dt=params.get("start_dt"),
                                   end_dt=params.get("end_dt"))
 
 # TODO upsert with additional identifier.. move_id?
 # TODO let client pass truck name instead of truck id
-
-# TODO validate: res starts in future, end dt > start dt, truck id, user_id; decorator?
-# TODO verify logged in user is requesting own or is admin user
+# TODO validate dates
 def create_reservation(conn, user_id, truck_id, start_dt, end_dt):
     query = """
     insert into reservations (user_id, truck_id, start_dt, end_dt)
@@ -117,7 +115,7 @@ def create_reservation(conn, user_id, truck_id, start_dt, end_dt):
     error_msg = "truck unavailable! please select a different truck or daterange and try again"
     return write(conn,
                  query,
-                 (int(user_id), int(truck_id), start_dt, end_dt),
+                 (user_id, int(truck_id), start_dt, end_dt),
                  success_msg,
                  error_msg)
 
@@ -138,11 +136,10 @@ def get_available_trucks(conn, start_dt, end_dt):
            on trucks.id = overlapping_reservations.truck_id
     where overlapping_reservations.reservation_id is null
       and %s > now()
-    """ # TODO check start > now in python
+    """
     return fetch(conn, query, (start_dt, end_dt, start_dt), "error fetching trucks, please check your dates and try again")
 
 # TODO option/param to fetch past reservations
-# TODO verify logged in user is requesting own or is admin user
 def get_user_reservations(conn, user_id):
     query = """
     select reservations.start_dt
@@ -156,6 +153,8 @@ def get_user_reservations(conn, user_id):
     order by start_dt asc
     limit 100
     """
-    return fetch(conn, query, (int(user_id),), "error fetching your reservations")
+    return fetch(conn, query, (user_id,), "error fetching your reservations")
 
-# TODO factor fns out into other files eg trucks, reservations
+# TODO exception classes
+# TODO rename file; move fns into sep files
+# TODO admin user support

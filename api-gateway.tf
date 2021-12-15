@@ -1,8 +1,12 @@
 resource "aws_apigatewayv2_api" "lambda" {
   name          = "serverless_lambda_gw"
   protocol_type = "HTTP"
+
   cors_configuration {
-    allow_origins = ["*"]
+    allow_origins     = ["http://localhost:3000"]
+    allow_credentials = "true"
+    allow_headers     = ["Content-Type", "Authorization"]
+    allow_methods     = ["GET", "OPTIONS", "POST"]
   }
 }
 
@@ -45,20 +49,25 @@ resource "aws_apigatewayv2_route" "get_trucks" {
   target    = "integrations/${aws_apigatewayv2_integration.trucks.id}"
 }
 
-resource "aws_apigatewayv2_route" "get_reservations" {
+resource "aws_apigatewayv2_route" "options_reservations" {
   api_id    = aws_apigatewayv2_api.lambda.id
-  route_key = "GET /reservations"
-  target    = "integrations/${aws_apigatewayv2_integration.trucks.id}"
-  # authorization_type = "JWT"
-  # authorizer_id      = aws_apigatewayv2_authorizer.auth.id
+  route_key = "OPTIONS /reservations"
+}
+
+resource "aws_apigatewayv2_route" "get_reservations" {
+  api_id             = aws_apigatewayv2_api.lambda.id
+  route_key          = "GET /reservations"
+  target             = "integrations/${aws_apigatewayv2_integration.trucks.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.auth.id
 }
 
 resource "aws_apigatewayv2_route" "post_reservations" {
-  api_id    = aws_apigatewayv2_api.lambda.id
-  route_key = "POST /reservations"
-  target    = "integrations/${aws_apigatewayv2_integration.trucks.id}"
-  # authorization_type = "JWT"
-  # authorizer_id      = aws_apigatewayv2_authorizer.auth.id
+  api_id             = aws_apigatewayv2_api.lambda.id
+  route_key          = "POST /reservations"
+  target             = "integrations/${aws_apigatewayv2_integration.trucks.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.auth.id
 }
 
 resource "aws_cloudwatch_log_group" "api_gw" {
@@ -74,14 +83,14 @@ resource "aws_lambda_permission" "api_gw" {
   source_arn    = "${aws_apigatewayv2_api.lambda.execution_arn}/*/*"
 }
 
-# resource "aws_apigatewayv2_authorizer" "auth" {
-#   api_id           = aws_apigatewayv2_api.lambda.id
-#   authorizer_type  = "JWT"
-#   identity_sources = ["$request.header.Authorization"]
-#   name             = "cognito-authorizer"
-#
-#   jwt_configuration {
-#     audience = [aws_cognito_user_pool_client.client.id]
-#     issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
-#   }
-# }
+resource "aws_apigatewayv2_authorizer" "auth" {
+  api_id           = aws_apigatewayv2_api.lambda.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.client.id]
+    issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
+  }
+}

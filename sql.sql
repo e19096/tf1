@@ -14,13 +14,13 @@ create table public.trucks (
 
 create table public.reservations (
   id serial primary key not null,
-	user_id integer not null,
+	user_id uuid not null,
 	truck_id integer not null,
 	start_dt timestamp with time zone not null,
 	end_dt timestamp with time zone not null
 );
-alter table public.reservations
-  add constraint reservation_user_id_fkey foreign key (user_id) references public.users(id);
+-- alter table public.reservations
+--   add constraint reservation_user_id_fkey foreign key (user_id) references public.users(id);
 alter table public.reservations
   add constraint reservation_truck_id_fkey foreign key (truck_id) references public.trucks(id);
 
@@ -28,6 +28,8 @@ CREATE EXTENSION btree_gist;
 alter table reservations
   add constraint no_overlapping
   exclude using gist (truck_id with =, tstzrange("start_dt", "end_dt", '[]') WITH &&);
+
+create index reservations_user_id_index ON reservations (user_id);
 
 -- insert into users (first_name, last_name, email) values
 -- 	('David','Rose','david@roseapothecary.com'),

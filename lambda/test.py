@@ -4,10 +4,10 @@ import os
 
 test_event = {
     'version': '1.0',
-    # 'resource': '/reservations',
-    # 'path': '/serverless_lambda_stage/reservations',
-    'resource': '/trucks',
-    'path': '/serverless_lambda_stage/trucks',
+    'resource': '/reservations',
+    'path': '/serverless_lambda_stage/reservations',
+    # 'resource': '/trucks',
+    # 'path': '/serverless_lambda_stage/trucks',
     # 'httpMethod': 'POST',
     'httpMethod': 'GET',
     'headers': {
@@ -31,22 +31,36 @@ test_event = {
         'accept': ['*/*']
     },
     # 'queryStringParameters': {
-    #     'user_id': '99',
+    #     # 'user_id': '99',
     #     'truck_id': '1',
     #     'start_dt': '2021-12-16T14:00:00Z',
     #     'end_dt': '2021-12-16T15:30:00Z',
     # },
+    'queryStringParameters': None,
     # 'queryStringParameters': {
-    #     'user_id': '99'
+    #     'end_dt': '2021-12-15T09:30:00',
+    #     'start_dt': '2021-12-15T08:00:00'
     # },
-    'queryStringParameters': {
-        'end_dt': '2021-12-15T09:30:00',
-        'start_dt': '2021-12-15T08:00:00'
-    },
     'multiValueQueryStringParameters': {},
     'requestContext': {
         'accountId': '826400453259',
         'apiId': 'l816j6tbjg',
+        'authorizer': {
+            'claims': {
+                'aud': '28427m4ef9sv96kd3gatpdhsmo',
+                'auth_time': '1639530242',
+                'cognito:username': 'david@roseapothecary.com',
+                'event_id': 'b9593fb9-1fa6-47ce-9905-293abc534fe3',
+                'exp': '1639533842',
+                'iat': '1639530242',
+                'iss': 'https://cognito-idp.us-east-2.amazonaws.com/us-east-2_OfO9zaVMY',
+                'jti': 'debc2769-e6b7-46e7-8dc1-8c4393757863',
+                'origin_jti': '992088fa-1392-4670-910f-498e9cde4721',
+                'sub': '9cd757fc-0f7f-4547-8d62-1a52e5289ecb',
+                'token_use': 'id'
+            },
+            'scopes': None
+        },
         'domainName': 'l816j6tbjg.execute-api.us-east-2.amazonaws.com',
         'domainPrefix': 'l816j6tbjg',
         'extendedRequestId': 'KRYsSgpKCYcEPeg=',
