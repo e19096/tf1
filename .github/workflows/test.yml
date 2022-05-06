@@ -9,7 +9,7 @@ on:
       branch:
         description: "The branch to build"
         required: true
-        default: "main"
+        default: "development"
 
 jobs:
   terraform:
@@ -22,6 +22,11 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
 
+      - name: Go to project TODO
+        run: |
+          cp -r ./providers ./providers-test
+          cd ./providers-test
+
       - name: Terraform Init
         id: init
         run: terraform init
@@ -29,3 +34,11 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color -input=false
+        # continue-on-error: true
+
+      # - name: Terraform Plan Status
+      #   if: steps.plan.outcome == 'failure'
+      #   run: exit 1
+
+      # - name: Terraform Apply
+      #   run: terraform apply -auto-approve -input=false
