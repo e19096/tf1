@@ -25,6 +25,7 @@ jobs:
         run: |
           cp -r ./providers ./providers-test
           cd ./providers-test
+          ls
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
