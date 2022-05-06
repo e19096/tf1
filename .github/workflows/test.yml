@@ -18,20 +18,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+          with:
+            ref: ${{ github.event.inputs.branch }}
+
+      - name: Create test provider
+        run: |
+          cp -r ./providers ./providers-test
+          cd ./providers-test
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
 
-      - name: Go to project TODO
-        run: |
-          cp -r ./providers ./providers-test
-          cd ./providers-test
-          pwd
-          ls
-
       - name: Terraform Init
         id: init
         run: terraform init
+
+      - name: Terraform Tfvars
+        id: tfvars
+        run: |
+          cat << EOF > terraform.tfvars
+            prefix = "${{ github.event.inputs.prefix }}"
+          EOF
 
       - name: Terraform Plan
         id: plan
