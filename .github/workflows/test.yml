@@ -1,0 +1,31 @@
+name: "Terraform"
+
+on:
+  workflow_dispatch:
+    inputs:
+      prefix:
+        description: "Your name/initials to use as a prefix for your aws resources"
+        required: true
+      branch:
+        description: "The branch to build"
+        required: true
+        default: "main"
+
+jobs:
+  terraform:
+    name: "Terraform"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -input=false
