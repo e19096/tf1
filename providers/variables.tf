@@ -3,8 +3,11 @@ variable "region" {
   description = "AWS region"
 }
 
-variable "db_password" {
-  description = "RDS root user password"
-  type        = string
-  sensitive   = true
+variable "prefix" {
 }
+
+# variable "db_password" {
+#   description = "RDS root user password"
+#   type        = string
+#   sensitive   = true
+# }
