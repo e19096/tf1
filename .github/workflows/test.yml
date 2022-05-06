@@ -25,11 +25,6 @@ jobs:
       - name: Go to project TODO
         run: |
           cp -r ./providers ./providers-test
-          pwd
-          ls
-          cd ./providers
-          pwd
-          ls
           cd ./providers-test
           pwd
           ls
